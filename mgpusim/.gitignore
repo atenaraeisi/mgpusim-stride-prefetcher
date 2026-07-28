@@ -47,22 +47,22 @@ test
 
 .history
 
-fastwalshtransform
-fir
-floydwarshall
-matmul
-matrixtranspose
-simpleconvolution
+/amd/samples/fastwalshtransform/fastwalshtransform
+/amd/samples/fir/fir
+/amd/samples/floydwarshall/floydwarshall
+/amd/samples/matrixmultiplication/matmul
+/amd/samples/matrixtranspose/matrixtranspose
+/amd/samples/simpleconvolution/simpleconvolution
 
 # HIP/ROCm build artifacts
 *.hipi
 *.bc
 *.s
 *.hipfb
-conv2d
-im2col
+/amd/samples/conv2d/conv2d
+/amd/samples/im2col/im2col
 _sim_benchmarks/
-stencil2d_bench
+/amd/samples/stencil2d/stencil2d_bench
 _akita_local/
 
 # hipcc linker intermediate
