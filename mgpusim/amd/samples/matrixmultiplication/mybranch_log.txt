@@ -1,0 +1,2 @@
+Monitoring simulation with http://localhost:32776
+2026/07/28 20:17:43 /home/shadi/ca-project/mgpusim-stride-prefetcher/mgpusim/amd/benchmarks/amdappsdk/matrixmultiplication/benchmark.go:97: Passed!
