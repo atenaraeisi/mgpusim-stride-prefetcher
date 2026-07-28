@@ -1,0 +1,26 @@
+# Go build outputs
+*.exe
+*.out
+*.test
+*.prof
+
+# Simulation outputs
+*.sqlite3
+*.db
+*.log
+*.trace
+
+# Known generated binaries
+mgpusim/amd/samples/fir/fir
+
+# Generated reports
+akita_sim_*
+baseline_*
+
+# Editors
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
