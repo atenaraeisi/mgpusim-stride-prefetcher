@@ -41,6 +41,9 @@ type Spec struct {
 	AddressMapperType string   `json:"address_mapper_type"`
 	RemotePortNames   []string `json:"remote_port_names"`
 	InterleavingSize  uint64   `json:"interleaving_size"`
+
+	PrefetcherEnabled   bool   `json:"prefetcher_enabled"`
+	PrefetcherAlgorithm string `json:"prefetcher_algorithm"`
 }
 
 // State contains mutable runtime data for the writeback cache.
@@ -83,6 +86,12 @@ type State struct {
 	FlusherBlockToEvictRefs []blockRef    `json:"flusher_block_to_evict_refs"`
 	HasProcessingFlush      bool          `json:"has_processing_flush"`
 	ProcessingFlush         flushReqState `json:"processing_flush"`
+
+	StatPrefetchRequests uint64 `json:"stat_prefetch_requests"`
+	StatPrefetchHits     uint64 `json:"stat_prefetch_hits"`
+	StatCachePollution   uint64 `json:"stat_cache_pollution"`
+	StatMSHRHits         uint64 `json:"stat_mshr_hits"`
+	StatMSHRMisses       uint64 `json:"stat_mshr_misses"`
 }
 
 // allocTransaction stores t in the Transactions slice and returns its index.
@@ -313,6 +322,8 @@ type Resources struct {
 	Storage             *mem.Storage
 	AddressToPortMapper mem.AddressToPortMapper
 	RemotePorts         []messaging.RemotePort
+
+	PrefetchUnit cache.Prefetcher
 }
 
 // Comp is the writeback cache component.
