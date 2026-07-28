@@ -28,6 +28,18 @@ func (s *mshrStage) Tick() bool {
 	next.HasProcessingMSHREntry = true
 	next.ProcessingMSHREntryIdx = transIdx
 
+	// --- کدهای اضافه شده برای استخراج معیارهای MSHR ---
+	// بر اساس صورت پروژه: اولین درخواست Miss است و درخواست‌های بعدی که
+	// برای همان بلاک آمده‌اند، Hit محسوب می‌شوند.
+	waitersCount := len(trans.MSHRTransactionIndices)
+	if waitersCount > 0 {
+		// ثبت ۱ نقصان برای ایجاد این ورودی MSHR
+		next.StatMSHRMisses++
+		// ثبت بقیه درخواست‌های منتظر به عنوان اصابت
+		next.StatMSHRHits += uint64(waitersCount - 1)
+	}
+	// ------------------------------------------------
+
 	// Copy data into local state fields for processing
 	_ = trans
 
