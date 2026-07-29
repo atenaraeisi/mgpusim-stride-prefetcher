@@ -2,6 +2,7 @@ package writeback
 
 import (
 	"github.com/sarchlab/akita/v5/mem/memprotocol"
+	"github.com/sarchlab/akita/v5/mem/vm"
 	"github.com/sarchlab/akita/v5/timing"
 	"github.com/sarchlab/akita/v5/tracing"
 )
@@ -38,15 +39,10 @@ func (p *topParser) Tick() bool {
 		trans.ReadAccessByteSize = msg.AccessByteSize
 		trans.ReadPID = msg.PID
 
-		if p.cache.comp.Spec.PrefetcherEnabled && p.cache.comp.Resources.PrefetchUnit != nil {
-
-			p.cache.comp.Resources.PrefetchUnit.Inspect(&msg)
-
-			prefetchAddresses := p.cache.comp.Resources.PrefetchUnit.GetPrefetchAddresses()
-
-			if len(prefetchAddresses) > 0 {
-				next.StatPrefetchRequests += uint64(len(prefetchAddresses))
-
+		if p.cache.comp.Spec().PrefetcherEnabled {
+			if pf := p.cache.comp.Resources().PrefetchUnit; pf != nil {
+				pf.Inspect(&msg)
+				p.issuePrefetches(pf.GetPrefetchAddresses(), msg.PID, msg.AccessByteSize)
 			}
 		}
 
@@ -76,4 +72,27 @@ func (p *topParser) Tick() bool {
 	p.cache.topPort().RetrieveIncoming()
 
 	return true
+}
+
+func (p *topParser) issuePrefetches(addrs []uint64, pid vm.PID, accessSize uint64) {
+	next := &p.cache.comp.State
+
+	for _, addr := range addrs {
+		if !next.DirStageBuf.CanPush() {
+			break
+		}
+
+		trans := transactionState{
+			ID:                 timing.GetIDGenerator().Generate(),
+			HasRead:            true,
+			ReadAddress:        addr,
+			ReadAccessByteSize: accessSize,
+			ReadPID:            pid,
+			IsPrefetch:         true,
+		}
+
+		idx := next.allocTransaction(trans)
+		next.DirStageBuf.PushTyped(idx)
+		next.StatPrefetchRequests++
+	}
 }
