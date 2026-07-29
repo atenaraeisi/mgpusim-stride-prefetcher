@@ -37,6 +37,19 @@ func (p *topParser) Tick() bool {
 		trans.ReadAddress = msg.Address
 		trans.ReadAccessByteSize = msg.AccessByteSize
 		trans.ReadPID = msg.PID
+
+		if p.cache.comp.Spec.PrefetcherEnabled && p.cache.comp.Resources.PrefetchUnit != nil {
+
+			p.cache.comp.Resources.PrefetchUnit.Inspect(&msg)
+
+			prefetchAddresses := p.cache.comp.Resources.PrefetchUnit.GetPrefetchAddresses()
+
+			if len(prefetchAddresses) > 0 {
+				next.StatPrefetchRequests += uint64(len(prefetchAddresses))
+
+			}
+		}
+
 	case memprotocol.WriteReq:
 		trans.HasWrite = true
 		trans.WriteMeta = msg.MsgMeta
