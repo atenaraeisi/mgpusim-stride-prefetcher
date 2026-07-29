@@ -31,7 +31,7 @@ func (p *topParser) Tick() bool {
 		ID: timing.GetIDGenerator().Generate(),
 	}
 
-	switch m := m.(type) {
+	switch m := msg.(type) {
 	case memprotocol.ReadReq:
 		trans.HasRead = true
 		trans.ReadMeta = m.MsgMeta
