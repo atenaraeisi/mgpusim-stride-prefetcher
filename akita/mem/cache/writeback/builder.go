@@ -27,6 +27,10 @@ var defaultSpec = Spec{
 	MaxInflightFetch:    128,
 	MaxInflightEviction: 128,
 	InterleavingSize:    4096,
+
+	// --- مقادیر پیش‌فرض پیش‌واکشی اضافه شد ---
+	PrefetcherEnabled:   false,
+	PrefetcherAlgorithm: "stride",
 }
 
 // DefaultSpec returns a copy of the default configuration. Callers typically
@@ -73,6 +77,15 @@ func (b Builder) WithResources(r Resources) Builder {
 	return b
 }
 
+// WithPrefetcher enables or disables the prefetcher and sets its algorithm.
+func (b Builder) WithPrefetcher(enabled bool, algorithm string) Builder {
+	b.spec.PrefetcherEnabled = enabled
+	b.spec.PrefetcherAlgorithm = algorithm
+	return b
+}
+
+// ----------------------------------------------------
+
 // Build creates a usable writeback cache. It declares the component's "Top",
 // "Bottom", and "Control" ports; assign the port instances after Build with
 // AssignPort.
@@ -86,6 +99,16 @@ func (b Builder) Build(name string) *Comp {
 		b.spec.TotalByteSize / uint64(b.spec.WayAssociativity*blockSize))
 
 	spec := b.buildSpec(numSets)
+
+	var prefetchUnit cache.Prefetcher
+	if spec.PrefetcherEnabled {
+		if spec.PrefetcherAlgorithm == "stride" {
+			// (نکته: نفر دوم پس از نوشتن الگوریتم، اینجا را تغییر می‌دهد)
+			prefetchUnit = &cache.DummyPrefetcher{}
+		} else {
+			prefetchUnit = &cache.DummyPrefetcher{}
+		}
+	}
 
 	laneWidth := spec.NumReqPerCycle
 	if laneWidth == 1 {
@@ -104,6 +127,7 @@ func (b Builder) Build(name string) *Comp {
 			Storage:             storage,
 			AddressToPortMapper: b.resources.AddressToPortMapper,
 			RemotePorts:         b.resources.RemotePorts,
+			PrefetchUnit:        b.resources.prefetchUnit,
 		}).
 		Build(name)
 
@@ -291,4 +315,9 @@ func (b Builder) createInternalStages(m *pipelineMW, laneWidth int) {
 	m.writeBuffer = &writeBufferStage{
 		cache: m,
 	}
+}
+
+func (b Builder) WithPrefetcher(p cache.Prefetcher) Builder {
+	b.resources.PrefetchUnit = p
+	return b
 }
