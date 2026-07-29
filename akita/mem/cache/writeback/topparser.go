@@ -31,28 +31,21 @@ func (p *topParser) Tick() bool {
 		ID: timing.GetIDGenerator().Generate(),
 	}
 
-	switch msg := msg.(type) {
+	switch m := m.(type) {
 	case memprotocol.ReadReq:
 		trans.HasRead = true
-		trans.ReadMeta = msg.MsgMeta
-		trans.ReadAddress = msg.Address
-		trans.ReadAccessByteSize = msg.AccessByteSize
-		trans.ReadPID = msg.PID
-
-		if p.cache.comp.Spec().PrefetcherEnabled {
-			if pf := p.cache.comp.Resources().PrefetchUnit; pf != nil {
-				pf.Inspect(&msg)
-				p.issuePrefetches(pf.GetPrefetchAddresses(), msg.PID, msg.AccessByteSize)
-			}
-		}
+		trans.ReadMeta = m.MsgMeta
+		trans.ReadAddress = m.Address
+		trans.ReadAccessByteSize = m.AccessByteSize
+		trans.ReadPID = m.PID
 
 	case memprotocol.WriteReq:
 		trans.HasWrite = true
-		trans.WriteMeta = msg.MsgMeta
-		trans.WriteAddress = msg.Address
-		trans.WriteData = msg.Data
-		trans.WriteDirtyMask = msg.DirtyMask
-		trans.WritePID = msg.PID
+		trans.WriteMeta = m.MsgMeta
+		trans.WriteAddress = m.Address
+		trans.WriteData = m.Data
+		trans.WriteDirtyMask = m.DirtyMask
+		trans.WritePID = m.PID
 	}
 
 	idx := next.allocTransaction(trans)
@@ -70,6 +63,14 @@ func (p *topParser) Tick() bool {
 	tracing.TraceReqReceive(p.cache.comp, msg)
 
 	p.cache.topPort().RetrieveIncoming()
+
+	if readReq, ok := msg.(memprotocol.ReadReq); ok &&
+		p.cache.comp.Spec().PrefetcherEnabled {
+		if pf := p.cache.comp.Resources().PrefetchUnit; pf != nil {
+			pf.Inspect(&readReq)
+			p.issuePrefetches(pf.GetPrefetchAddresses(), readReq.PID, readReq.AccessByteSize)
+		}
+	}
 
 	return true
 }

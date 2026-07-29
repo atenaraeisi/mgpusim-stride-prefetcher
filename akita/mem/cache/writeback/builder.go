@@ -28,7 +28,6 @@ var defaultSpec = Spec{
 	MaxInflightEviction: 128,
 	InterleavingSize:    4096,
 
-	// --- مقادیر پیش‌فرض پیش‌واکشی اضافه شد ---
 	PrefetcherEnabled:   false,
 	PrefetcherAlgorithm: "stride",
 }
@@ -100,12 +99,13 @@ func (b Builder) Build(name string) *Comp {
 
 	spec := b.buildSpec(numSets)
 
-	var prefetchUnit cache.Prefetcher
-	if spec.PrefetcherEnabled {
-		if spec.PrefetcherAlgorithm == "stride" {
-			// (نکته: نفر دوم پس از نوشتن الگوریتم، اینجا را تغییر می‌دهد)
+	prefetchUnit := b.resources.PrefetchUnit
+	if spec.PrefetcherEnabled && prefetchUnit == nil {
+		switch spec.PrefetcherAlgorithm {
+		case "stride":
+			//Stride Algorithm
 			prefetchUnit = &cache.DummyPrefetcher{}
-		} else {
+		default:
 			prefetchUnit = &cache.DummyPrefetcher{}
 		}
 	}
@@ -127,7 +127,7 @@ func (b Builder) Build(name string) *Comp {
 			Storage:             storage,
 			AddressToPortMapper: b.resources.AddressToPortMapper,
 			RemotePorts:         b.resources.RemotePorts,
-			PrefetchUnit:        b.resources.prefetchUnit,
+			PrefetchUnit:        prefetchUnit,
 		}).
 		Build(name)
 
@@ -315,9 +315,4 @@ func (b Builder) createInternalStages(m *pipelineMW, laneWidth int) {
 	m.writeBuffer = &writeBufferStage{
 		cache: m,
 	}
-}
-
-func (b Builder) WithPrefetcher(p cache.Prefetcher) Builder {
-	b.resources.PrefetchUnit = p
-	return b
 }
