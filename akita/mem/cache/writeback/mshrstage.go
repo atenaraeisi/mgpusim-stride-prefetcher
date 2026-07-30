@@ -85,7 +85,15 @@ func (s *mshrStage) processOneReq() bool {
 		next.Transactions[transIdx].Removed = true
 
 		if trans.HasRead {
-			s.respondRead(trans, processingTrans.MSHRData, spec.Log2BlockSize)
+			// Prefetches are internal cache requests and must not send responses
+			// to the upper-level component.
+			if !trans.IsPrefetch {
+				s.respondRead(
+					trans,
+					processingTrans.MSHRData,
+					spec.Log2BlockSize,
+				)
+			}
 		} else {
 			s.respondWrite(trans)
 		}

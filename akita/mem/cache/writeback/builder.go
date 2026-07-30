@@ -103,8 +103,10 @@ func (b Builder) Build(name string) *Comp {
 	if spec.PrefetcherEnabled && prefetchUnit == nil {
 		switch spec.PrefetcherAlgorithm {
 		case "stride":
-			//Stride Algorithm
-			prefetchUnit = &cache.DummyPrefetcher{}
+			config := cache.DefaultStridePrefetcherConfig()
+			config.BlockSize = uint64(1) << spec.Log2BlockSize
+
+			prefetchUnit = cache.NewStridePrefetcher(config)
 		default:
 			prefetchUnit = &cache.DummyPrefetcher{}
 		}
