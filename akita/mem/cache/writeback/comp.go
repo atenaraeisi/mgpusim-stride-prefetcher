@@ -208,6 +208,7 @@ type transactionState struct {
 
 	// Read request fields (flat, replaces memprotocol.ReadReq)
 	HasRead            bool              `json:"has_read"`
+	IsPrefetch         bool              `json:"is_prefetch"`
 	ReadMeta           messaging.MsgMeta `json:"read_meta"`
 	ReadAddress        uint64            `json:"read_address"`
 	ReadAccessByteSize uint64            `json:"read_access_byte_size"`

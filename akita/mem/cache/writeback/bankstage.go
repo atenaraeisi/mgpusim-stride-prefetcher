@@ -190,28 +190,45 @@ func (s *bankStage) finalizeTrans() bool {
 	return false
 }
 
-func (s *bankStage) finalizeReadHit(transIdx int, trans *transactionState) bool {
+func (s *bankStage) finalizeReadHit(
+	transIdx int,
+	trans *transactionState,
+) bool {
+	spec := s.cache.comp.Spec()
+	next := &s.cache.comp.State
+
+	nextBlock := &next.DirectoryState.
+		Sets[trans.BlockSetID].
+		Blocks[trans.BlockWayID]
+
+	// A prefetch is an internal cache request. It must not send a
+	// DataReadyRsp to the upper-level component.
+	if trans.IsPrefetch {
+		trans.Removed = true
+		next.BankInflightTransCounts[s.bankID]--
+		nextBlock.ReadCount--
+		s.finishBank(trans)
+
+		return true
+	}
+
 	if !s.cache.topPort().CanSend() {
 		return false
 	}
 
-	spec := s.cache.comp.Spec()
-	next := &s.cache.comp.State
-
 	addr := trans.ReadAddress
 	_, offset := getCacheLineID(addr, spec.Log2BlockSize)
-	nextBlock := &next.DirectoryState.Sets[trans.BlockSetID].Blocks[trans.BlockWayID]
 
 	data, err := s.cache.storage.Read(
-		nextBlock.CacheAddress+offset, trans.ReadAccessByteSize)
+		nextBlock.CacheAddress+offset,
+		trans.ReadAccessByteSize,
+	)
 	if err != nil {
 		panic(err)
 	}
 
 	trans.Removed = true
-
 	next.BankInflightTransCounts[s.bankID]--
-
 	nextBlock.ReadCount--
 
 	dataReady := memprotocol.DataReadyRsp{}
@@ -222,8 +239,8 @@ func (s *bankStage) finalizeReadHit(transIdx int, trans *transactionState) bool 
 	dataReady.Data = data
 	dataReady.TrafficBytes = len(data) + 4
 	dataReady.TrafficClass = "memprotocol.DataReadyRsp"
-	s.cache.topPort().Send(dataReady)
 
+	s.cache.topPort().Send(dataReady)
 	s.finishBank(trans)
 	tracing.TraceReqComplete(s.cache.comp, trans.ReadMeta)
 
