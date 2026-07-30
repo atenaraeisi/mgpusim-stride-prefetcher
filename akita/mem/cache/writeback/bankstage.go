@@ -214,6 +214,13 @@ func (s *bankStage) finalizeReadHit(transIdx int, trans *transactionState) bool 
 
 	nextBlock.ReadCount--
 
+	if trans.IsPrefetch {
+		// هیچ درخواست‌کننده‌ی واقعی‌ای پشت این تراکنش نیست؛ فقط داده را
+		// (که همین الان خوانده شد) دور بریز و پاسخی نفرست.
+		s.finishBank(trans)
+		return true
+	}
+
 	dataReady := memprotocol.DataReadyRsp{}
 	dataReady.ID = timing.GetIDGenerator().Generate()
 	dataReady.Src = s.cache.topPort().AsRemote()

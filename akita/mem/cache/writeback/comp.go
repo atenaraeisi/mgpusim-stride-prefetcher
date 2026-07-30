@@ -203,8 +203,7 @@ const (
 // All fields are flat and directly JSON-serializable.
 type transactionState struct {
 	Action action `json:"action"`
-
-	ID uint64 `json:"id"`
+	ID     uint64 `json:"id"`
 
 	// Read request fields (flat, replaces memprotocol.ReadReq)
 	HasRead            bool              `json:"has_read"`
@@ -275,6 +274,9 @@ type transactionState struct {
 	// Data saved from MSHR entry before removal (for bank/mshr stage)
 	MSHRData               []byte `json:"mshr_data"`
 	MSHRTransactionIndices []int  `json:"mshr_transaction_indices"`
+
+	// Prefetch
+	IsPrefetch bool `json:"is_prefetch"`
 
 	// Removed marks this transaction slot as logically deleted.
 	Removed bool `json:"removed"`

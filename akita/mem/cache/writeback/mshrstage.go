@@ -84,7 +84,9 @@ func (s *mshrStage) processOneReq() bool {
 	if transactionPresent {
 		next.Transactions[transIdx].Removed = true
 
-		if trans.HasRead {
+		if trans.IsPrefetch {
+			// پیش‌واکشی: داده در بانک نوشته شده (توسط finalizeBankWriteFetched)،
+		} else if trans.HasRead {
 			s.respondRead(trans, processingTrans.MSHRData, spec.Log2BlockSize)
 		} else {
 			s.respondWrite(trans)
