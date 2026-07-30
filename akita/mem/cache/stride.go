@@ -5,37 +5,28 @@ import (
 	"github.com/sarchlab/akita/v5/mem/vm"
 )
 
-// StridePrefetcherConfig contains the tunable parameters of the stride
-// prefetcher. Addresses are normalized to cache-line boundaries before the
-// stride is calculated.
 type StridePrefetcherConfig struct {
-	// Degree is the maximum number of future cache lines generated after a
-	// stride pattern becomes confident.
+	// Maximum cache lines to prefetch per detected stride.
 	Degree int
 
-	// ConfidenceThreshold is the number of equal, consecutive stride
-	// observations required before prefetching starts.
+	// Matching strides required before prefetching.
 	ConfidenceThreshold int
 
-	// HistorySize is the maximum number of normalized demand addresses kept
-	// for each process.
+	// Maximum demand addresses stored per process.
 	HistorySize int
 
-	// BlockSize is the cache-line size in bytes.
+	// Cache-line size in bytes.
 	BlockSize uint64
 
-	// PageSize is the virtual-memory page size used by the optional page
-	// boundary check.
+	// Page size used for boundary checks.
 	PageSize uint64
 
-	// PreventPageCrossing stops address generation when a predicted address
-	// belongs to a different page than the current demand address.
+	// Prevents prefetching across page boundaries.
 	PreventPageCrossing bool
 }
 
-// strideStreamState stores the predictor state of one process. The current
-// Prefetcher interface does not expose a program counter, so PID is the most
-// specific stream identifier available to the algorithm.
+// strideStreamState tracks per-process stride prediction state.
+// PID is used because the prefetcher does not expose the program counter.
 type strideStreamState struct {
 	history     []uint64
 	lastAddress uint64
