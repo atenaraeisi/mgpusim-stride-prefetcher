@@ -337,6 +337,7 @@ func clearCachePipelinesAndBuffers(next *State) {
 	next.InflightEvictionIndices = nil
 	next.HasProcessingMSHREntry = false
 	next.ProcessingMSHREntryIdx = 0
+	next.PendingPrefetches = nil
 }
 
 func (m *ctrlMiddleware) handleUnsupported(req memcontrolprotocol.Req) bool {

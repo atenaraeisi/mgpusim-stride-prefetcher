@@ -28,8 +28,9 @@ var defaultSpec = Spec{
 	MaxInflightEviction: 128,
 	InterleavingSize:    4096,
 
-	PrefetcherEnabled:   false,
-	PrefetcherAlgorithm: "stride",
+	PrefetcherEnabled:     false,
+	PrefetcherAlgorithm:   "stride",
+	PrefetchQueueCapacity: 8,
 }
 
 // DefaultSpec returns a copy of the default configuration. Callers typically

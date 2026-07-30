@@ -42,8 +42,9 @@ type Spec struct {
 	RemotePortNames   []string `json:"remote_port_names"`
 	InterleavingSize  uint64   `json:"interleaving_size"`
 
-	PrefetcherEnabled   bool   `json:"prefetcher_enabled"`
-	PrefetcherAlgorithm string `json:"prefetcher_algorithm"`
+	PrefetcherEnabled     bool   `json:"prefetcher_enabled"`
+	PrefetcherAlgorithm   string `json:"prefetcher_algorithm"`
+	PrefetchQueueCapacity int    `json:"prefetch_queue_capacity"`
 }
 
 // State contains mutable runtime data for the writeback cache.
@@ -86,6 +87,12 @@ type State struct {
 	FlusherBlockToEvictRefs []blockRef    `json:"flusher_block_to_evict_refs"`
 	HasProcessingFlush      bool          `json:"has_processing_flush"`
 	ProcessingFlush         flushReqState `json:"processing_flush"`
+
+	// PendingPrefetches holds predicted addresses that could not be pushed into
+	// DirStageBuf yet because a demand request (or a previous prefetch) used the
+	// available slot(s) this tick. They are retried, oldest first, on later
+	// ticks — never dropped just because the buffer was momentarily full.
+	PendingPrefetches []pendingPrefetch `json:"pending_prefetches"`
 
 	StatPrefetchRequests uint64 `json:"stat_prefetch_requests"`
 	StatPrefetchHits     uint64 `json:"stat_prefetch_hits"`
@@ -181,6 +188,15 @@ type flushReqState struct {
 	// the write-backs complete, exactly those blocks (and no others) are
 	// marked clean. Blocks outside the filter are left untouched.
 	FlushedRefs []blockRef `json:"flushed_refs"`
+}
+
+// pendingPrefetch is one predicted address waiting for room in DirStageBuf.
+// Prefetches are a low-priority queue: demand requests always get pushed
+// first each tick; a prefetch only uses leftover buffer capacity.
+type pendingPrefetch struct {
+	Addr       uint64 `json:"addr"`
+	PID        vm.PID `json:"pid"`
+	AccessSize uint64 `json:"access_size"`
 }
 
 type action int
