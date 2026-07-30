@@ -11,14 +11,35 @@ import (
 	"github.com/sarchlab/akita/v5/timing"
 )
 
+type fixedPrefetcher struct {
+	addresses    []uint64
+	inspectCount int
+}
+
+func (p *fixedPrefetcher) Inspect(_ *memprotocol.ReadReq) {
+	p.inspectCount++
+}
+
+func (p *fixedPrefetcher) GetPrefetchAddresses() []uint64 {
+	return append([]uint64(nil), p.addresses...)
+}
+
+func (p *fixedPrefetcher) Reset() {
+	p.addresses = nil
+	p.inspectCount = 0
+}
+
 var _ = Describe("TopParser", func() {
 	var (
 		m       *pipelineMW
 		parser  *topParser
 		topPort messaging.Port
+		pf      *fixedPrefetcher
 	)
 
 	BeforeEach(func() {
+		pf = &fixedPrefetcher{}
+
 		initialState := State{
 			CacheState:   int(cacheStateRunning),
 			EvictingList: make(map[uint64]bool),
@@ -48,8 +69,12 @@ var _ = Describe("TopParser", func() {
 			WithEngine(timing.NewSerialEngine()).
 			WithFreq(1 * timing.GHz).
 			WithSpec(Spec{
-				NumReqPerCycle: 4,
-				Log2BlockSize:  6,
+				NumReqPerCycle:    4,
+				Log2BlockSize:     6,
+				PrefetcherEnabled: true,
+			}).
+			WithResources(Resources{
+				PrefetchUnit: pf,
 			}).
 			Build("Cache")
 
@@ -98,6 +123,35 @@ var _ = Describe("TopParser", func() {
 		Expect(next.Transactions[0].ReadAddress).To(Equal(uint64(0x100)))
 		Expect(next.Transactions[0].ReadAccessByteSize).To(Equal(uint64(64)))
 		Expect(topPort.PeekIncoming()).To(BeNil())
+	})
+
+	It("should create prefetch transactions", func() {
+		pf.addresses = []uint64{0x140}
+
+		read := memprotocol.ReadReq{}
+		read.ID = timing.GetIDGenerator().Generate()
+		read.Address = 0x100
+		read.AccessByteSize = 64
+		read.TrafficBytes = 12
+		read.TrafficClass = "memprotocol.ReadReq"
+
+		topPort.Deliver(read)
+
+		ret := parser.Tick()
+
+		Expect(ret).To(BeTrue())
+		Expect(pf.inspectCount).To(Equal(1))
+
+		next := &m.comp.State
+		Expect(next.Transactions).To(HaveLen(2))
+
+		Expect(next.Transactions[0].IsPrefetch).To(BeFalse())
+
+		Expect(next.Transactions[1].IsPrefetch).To(BeTrue())
+		Expect(next.Transactions[1].ReadAddress).
+			To(Equal(uint64(0x140)))
+
+		Expect(next.StatPrefetchRequests).To(Equal(uint64(1)))
 	})
 
 	It("should parse write from top", func() {
