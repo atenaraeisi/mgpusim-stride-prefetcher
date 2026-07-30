@@ -124,6 +124,12 @@ func (ds *directoryStage) doRead(transIdx int, trans *transactionState) bool {
 	mshrIdx, found := cache.MSHRQuery(
 		&next.MSHRState, trans.ReadPID, cachelineID)
 	if found {
+		if trans.IsPrefetch {
+			// این پیش‌واکشی تکراری نیست آن را دور بریز
+			ds.popDirPostBuf()
+			trans.Removed = true
+			return true
+		}
 		return ds.handleReadMSHRHit(transIdx, trans, mshrIdx)
 	}
 
@@ -132,6 +138,12 @@ func (ds *directoryStage) doRead(transIdx int, trans *transactionState) bool {
 		spec.NumSets, 1<<spec.Log2BlockSize,
 		trans.ReadPID, cachelineID)
 	if blockFound {
+		if trans.IsPrefetch {
+			// بلاک از قبل موجود است، پس این پیش‌واکشی زائد است
+			ds.popDirPostBuf()
+			trans.Removed = true
+			return true
+		}
 		return ds.handleReadHit(transIdx, trans, setID, wayID)
 	}
 

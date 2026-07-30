@@ -154,6 +154,44 @@ var _ = Describe("Bank Stage", func() {
 			Expect(dr.Data).To(Equal([]byte{5, 6, 7, 8}))
 		})
 	})
+	Context("completing a prefetch read hit", func() {
+		BeforeEach(func() {
+			next := &m.comp.State
+			block := &next.DirectoryState.Sets[0].Blocks[0]
+			block.CacheAddress = 0x40
+			block.ReadCount = 1
+
+			storage.Write(0x40, []byte{1, 2, 3, 4, 5, 6, 7, 8})
+
+			trans := transactionState{
+				HasRead:            true,
+				ReadAddress:        0x104,
+				ReadAccessByteSize: 4,
+				BlockSetID:         0,
+				BlockWayID:         0,
+				HasBlock:           true,
+				Action:             bankReadHit,
+				IsPrefetch:         true,
+			}
+			next.Transactions = []transactionState{trans}
+			next.BankPostPipelineBufs[0].PushTyped(0)
+			next.BankInflightTransCounts[0] = 1
+		})
+
+		It("should finish the transaction without sending a response", func() {
+			ret := bs.Tick()
+
+			Expect(ret).To(BeTrue())
+
+			next := &m.comp.State
+			Expect(next.Transactions[0].Removed).To(BeTrue())
+			Expect(next.BankInflightTransCounts[0]).To(Equal(0))
+
+			// نکته‌ی اصلی تست: چون هیچ پاسخی فرستاده نشده، پورت تک‌ظرفیتی
+			// همچنان خالی و آماده‌ی ارسال است.
+			Expect(topPort.CanSend()).To(BeTrue())
+		})
+	})
 
 	Context("completing a write-hit transaction", func() {
 		BeforeEach(func() {

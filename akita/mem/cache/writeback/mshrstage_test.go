@@ -176,6 +176,44 @@ var _ = Describe("MSHR Stage", func() {
 		Expect(dr.Data).To(Equal([]byte{5, 6, 7, 8}))
 	})
 
+	It("should finish a prefetch's MSHR entry without sending a response", func() {
+		trans := transactionState{
+			HasRead:     true,
+			ReadAddress: 0x104,
+			IsPrefetch:  true, // این یک پیش‌واکشی است، نه Demand
+		}
+
+		mshrTrans := transactionState{
+			MSHRTransactionIndices: []int{0},
+			MSHRData: []byte{
+				1, 2, 3, 4, 5, 6, 7, 8,
+				1, 2, 3, 4, 5, 6, 7, 8,
+				1, 2, 3, 4, 5, 6, 7, 8,
+				1, 2, 3, 4, 5, 6, 7, 8,
+				1, 2, 3, 4, 5, 6, 7, 8,
+				1, 2, 3, 4, 5, 6, 7, 8,
+				1, 2, 3, 4, 5, 6, 7, 8,
+				1, 2, 3, 4, 5, 6, 7, 8,
+			},
+		}
+
+		next := &m.comp.State
+		next.Transactions = []transactionState{trans, mshrTrans}
+		next.MSHRStageBuf.Clear()
+		next.MSHRStageBuf.PushTyped(1)
+
+		ret := ms.Tick()
+
+		Expect(ret).To(BeTrue())
+		next = &m.comp.State
+		Expect(next.HasProcessingMSHREntry).To(BeFalse())
+		Expect(next.Transactions[0].Removed).To(BeTrue())
+
+		// نکته‌ی اصلی این تست: چون پاسخی فرستاده نشده، پورت تک‌ظرفیتی
+		// همچنان خالی مانده و RetrieveOutgoing باید nil برگرداند.
+		Expect(topPort.RetrieveOutgoing()).To(BeNil())
+	})
+
 	It("should discard the request if it is no longer inflight", func() {
 		mshrTrans := transactionState{
 			MSHRTransactionIndices: []int{99}, // index that doesn't exist

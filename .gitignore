@@ -24,3 +24,4 @@ baseline_*
 # OS files
 .DS_Store
 Thumbs.db
+go1.26.5.linux-amd64.tar.gz
