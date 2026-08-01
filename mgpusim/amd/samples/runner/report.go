@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/sarchlab/akita/v5/datarecording"
+	"github.com/sarchlab/akita/v5/mem/cache/writeback"
 	"github.com/sarchlab/akita/v5/messaging"
 	"github.com/sarchlab/akita/v5/simulation"
 	"github.com/sarchlab/akita/v5/timing"
@@ -78,6 +79,7 @@ type cuCPIStackTracer struct {
 
 type reporter struct {
 	dataRecorder datarecording.DataRecorder
+	simulation   *simulation.Simulation
 
 	kernelTimeTracer        *kernelTimeTracer
 	perGPUKernelTimeTracers []*kernelTimeTracer
@@ -103,6 +105,7 @@ type reporter struct {
 func newReporter(s *simulation.Simulation) *reporter {
 	r := &reporter{
 		dataRecorder: s.GetDataRecorder(),
+		simulation:   s,
 	}
 
 	r.injectTracers(s)
@@ -381,6 +384,7 @@ func (r *reporter) report() {
 	r.reportSIMDBusyTime()
 	r.reportCacheLatency()
 	r.reportCacheHitRate()
+	r.reportPrefetchStats()
 	r.reportTLBHitRate()
 	r.reportRDMATransactionCount()
 	r.reportDRAMTransactionCount()
@@ -713,5 +717,29 @@ func (r *reporter) reportDRAMTransactionCount() {
 				Unit:     "bytes",
 			},
 		)
+	}
+}
+func (r *reporter) reportPrefetchStats() {
+	for _, comp := range r.simulation.Components() {
+		wc, ok := comp.(*writeback.Comp)
+		if !ok {
+			continue
+		}
+		st := wc.State
+		r.dataRecorder.InsertData(tableName, metric{
+			Location: wc.Name(), What: "prefetch_requests",
+			Value: float64(st.StatPrefetchRequests), Unit: "count"})
+		r.dataRecorder.InsertData(tableName, metric{
+			Location: wc.Name(), What: "prefetch_hits",
+			Value: float64(st.StatPrefetchHits), Unit: "count"})
+		r.dataRecorder.InsertData(tableName, metric{
+			Location: wc.Name(), What: "cache_pollution",
+			Value: float64(st.StatCachePollution), Unit: "count"})
+		r.dataRecorder.InsertData(tableName, metric{
+			Location: wc.Name(), What: "mshr_hits",
+			Value: float64(st.StatMSHRHits), Unit: "count"})
+		r.dataRecorder.InsertData(tableName, metric{
+			Location: wc.Name(), What: "mshr_misses",
+			Value: float64(st.StatMSHRMisses), Unit: "count"})
 	}
 }
