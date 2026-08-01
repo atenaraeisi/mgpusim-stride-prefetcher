@@ -125,7 +125,7 @@ func (ds *directoryStage) doRead(transIdx int, trans *transactionState) bool {
 		&next.MSHRState, trans.ReadPID, cachelineID)
 	if found {
 		if trans.IsPrefetch {
-			// این پیش‌واکشی تکراری نیست آن را دور بریز
+			// این پیش‌واکشی تکراری است (بلاک از قبل در حال Fetch است)
 			ds.popDirPostBuf()
 			trans.Removed = true
 			return true
@@ -169,6 +169,12 @@ func (ds *directoryStage) handleReadMSHRHit(
 		TaskID: tracing.MsgIDAtReceiver(&trans.ReadMeta, ds.cache.comp),
 		What:   "read-mshr-hit",
 	})
+	if trans.IsPrefetch {
+		tracing.AddTaskTag(ds.cache.comp, tracing.TaskTag{
+			TaskID: tracing.MsgIDAtReceiver(&trans.ReadMeta, ds.cache.comp),
+			What:   "prefetch-mshr-hit",
+		})
+	}
 
 	return true
 }
@@ -188,6 +194,16 @@ func (ds *directoryStage) handleReadHit(
 		TaskID: tracing.MsgIDAtReceiver(&trans.ReadMeta, ds.cache.comp),
 		What:   "read-hit",
 	})
+
+	if trans.IsPrefetch {
+		tracing.AddTaskTag(ds.cache.comp, tracing.TaskTag{
+			TaskID: tracing.MsgIDAtReceiver(&trans.ReadMeta, ds.cache.comp),
+			What:   "prefetch-hit",
+		})
+	} else if block.IsPrefetched {
+		next.StatPrefetchHits++
+		block.IsPrefetched = false
+	}
 
 	return ds.readFromBank(transIdx, trans, setID, wayID)
 }
@@ -211,6 +227,8 @@ func (ds *directoryStage) handleReadMiss(transIdx int, trans *transactionState) 
 	if victim.IsLocked || victim.ReadCount > 0 {
 		return false
 	}
+	// فقط خواندن است، شمارش هنوز انجام نشده
+	victimWasPrefetchedAndUnused := victim.IsPrefetched
 
 	if ds.needEviction(victim) {
 		ok := ds.evict(transIdx, trans, victimSetID, victimWayID)
@@ -219,6 +237,15 @@ func (ds *directoryStage) handleReadMiss(transIdx int, trans *transactionState) 
 				TaskID: tracing.MsgIDAtReceiver(&trans.ReadMeta, ds.cache.comp),
 				What:   "read-miss",
 			})
+			if trans.IsPrefetch {
+				tracing.AddTaskTag(ds.cache.comp, tracing.TaskTag{
+					TaskID: tracing.MsgIDAtReceiver(&trans.ReadMeta, ds.cache.comp),
+					What:   "prefetch-miss",
+				})
+			}
+			if victimWasPrefetchedAndUnused {
+				next.StatCachePollution++
+			}
 		}
 
 		return ok
@@ -230,6 +257,16 @@ func (ds *directoryStage) handleReadMiss(transIdx int, trans *transactionState) 
 			TaskID: tracing.MsgIDAtReceiver(&trans.ReadMeta, ds.cache.comp),
 			What:   "read-miss",
 		})
+		if trans.IsPrefetch {
+			tracing.AddTaskTag(ds.cache.comp, tracing.TaskTag{
+				TaskID: tracing.MsgIDAtReceiver(&trans.ReadMeta, ds.cache.comp),
+				What:   "prefetch-miss",
+			})
+		}
+		if victimWasPrefetchedAndUnused {
+			next.StatCachePollution++
+		}
+
 	}
 
 	return ok
@@ -491,6 +528,7 @@ func (ds *directoryStage) updateVictimBlockMetaData(
 	block.PID = uint32(pid)
 	block.IsLocked = true
 	block.IsDirty = false
+	block.IsPrefetched = false
 	cache.DirectoryVisit(&next.DirectoryState, setID, wayID)
 }
 

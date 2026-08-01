@@ -16,6 +16,11 @@ type BlockState struct {
 	ReadCount    int    `json:"read_count"`
 	IsLocked     bool   `json:"is_locked"`
 	DirtyMask    []bool `json:"dirty_mask"`
+	// IsPrefetched is true if this block's current data was brought in by a
+	// prefetch that no real demand access has hit yet. It is cleared on the
+	// first demand hit (the prefetch was useful) and checked on eviction
+	// (if still true, the prefetch was never used — cache pollution).
+	IsPrefetched bool `json:"is_prefetched"`
 }
 
 // SetState is a serializable representation of a cache Set.

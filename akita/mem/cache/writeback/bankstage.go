@@ -346,6 +346,7 @@ func (s *bankStage) finalizeBankWriteFetched(
 	}
 	nextBlock.IsLocked = false
 	nextBlock.IsValid = true
+	nextBlock.IsPrefetched = trans.IsPrefetch
 
 	next.BankInflightTransCounts[s.bankID]--
 
