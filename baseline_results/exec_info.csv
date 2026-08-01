@@ -1,0 +1,7 @@
+Property,Value
+Start Time,2026-08-01 13:51:30.256764314
+Command,/tmp/go-build3271040536/b001/exe/matrixmultiplication -timing -report-all -metric-file-name=baseline_matmul
+Working Directory,/tmp/go-build3271040536/b001/exe
+Start Virtual Time,0
+End Time,2026-08-01 13:51:30.761919122
+End Virtual Time,24560000
