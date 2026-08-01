@@ -94,11 +94,24 @@ type State struct {
 	// ticks — never dropped just because the buffer was momentarily full.
 	PendingPrefetches []pendingPrefetch `json:"pending_prefetches"`
 
+	// Prefetch statistics
 	StatPrefetchRequests uint64 `json:"stat_prefetch_requests"`
 	StatPrefetchHits     uint64 `json:"stat_prefetch_hits"`
 	StatCachePollution   uint64 `json:"stat_cache_pollution"`
-	StatMSHRHits         uint64 `json:"stat_mshr_hits"`
-	StatMSHRMisses       uint64 `json:"stat_mshr_misses"`
+
+	// Demand-read statistics
+	StatDemandReadHits     uint64 `json:"stat_demand_read_hits"`
+	StatDemandReadMisses   uint64 `json:"stat_demand_read_misses"`
+	StatDemandReadMSHRHits uint64 `json:"stat_demand_read_mshr_hits"`
+
+	// Prefetch-request outcome statistics
+	StatPrefetchCacheHits uint64 `json:"stat_prefetch_cache_hits"`
+	StatPrefetchMSHRHits  uint64 `json:"stat_prefetch_mshr_hits"`
+	StatPrefetchMisses    uint64 `json:"stat_prefetch_misses"`
+
+	// Legacy aggregate MSHR statistics
+	StatMSHRHits   uint64 `json:"stat_mshr_hits"`
+	StatMSHRMisses uint64 `json:"stat_mshr_misses"`
 }
 
 // allocTransaction stores t in the Transactions slice and returns its index.

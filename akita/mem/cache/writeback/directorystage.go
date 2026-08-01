@@ -116,38 +116,75 @@ func (ds *directoryStage) Reset() {
 	next.DirStageBuf.Clear()
 }
 
-func (ds *directoryStage) doRead(transIdx int, trans *transactionState) bool {
+func (ds *directoryStage) doRead(
+	transIdx int,
+	trans *transactionState,
+) bool {
 	spec := ds.cache.comp.Spec()
 	next := &ds.cache.comp.State
-	cachelineID, _ := getCacheLineID(trans.ReadAddress, spec.Log2BlockSize)
+
+	cachelineID, _ := getCacheLineID(
+		trans.ReadAddress,
+		spec.Log2BlockSize,
+	)
 
 	mshrIdx, found := cache.MSHRQuery(
-		&next.MSHRState, trans.ReadPID, cachelineID)
+		&next.MSHRState,
+		trans.ReadPID,
+		cachelineID,
+	)
 	if found {
 		if trans.IsPrefetch {
-			// این پیش‌واکشی تکراری است (بلاک از قبل در حال Fetch است)
+			next.StatPrefetchMSHRHits++
+
 			ds.popDirPostBuf()
 			trans.Removed = true
+
 			return true
 		}
-		return ds.handleReadMSHRHit(transIdx, trans, mshrIdx)
+
+		return ds.handleReadMSHRHit(
+			transIdx,
+			trans,
+			mshrIdx,
+		)
 	}
 
 	setID, wayID, blockFound := cache.DirectoryLookup(
 		&next.DirectoryState,
-		spec.NumSets, 1<<spec.Log2BlockSize,
-		trans.ReadPID, cachelineID)
+		spec.NumSets,
+		1<<spec.Log2BlockSize,
+		trans.ReadPID,
+		cachelineID,
+	)
 	if blockFound {
 		if trans.IsPrefetch {
-			// بلاک از قبل موجود است، پس این پیش‌واکشی زائد است
+			next.StatPrefetchCacheHits++
+
 			ds.popDirPostBuf()
 			trans.Removed = true
+
 			return true
 		}
-		return ds.handleReadHit(transIdx, trans, setID, wayID)
+
+		return ds.handleReadHit(
+			transIdx,
+			trans,
+			setID,
+			wayID,
+		)
 	}
 
-	return ds.handleReadMiss(transIdx, trans)
+	ok := ds.handleReadMiss(transIdx, trans)
+	if ok {
+		if trans.IsPrefetch {
+			next.StatPrefetchMisses++
+		} else {
+			next.StatDemandReadMisses++
+		}
+	}
+
+	return ok
 }
 
 func (ds *directoryStage) handleReadMSHRHit(
@@ -163,6 +200,7 @@ func (ds *directoryStage) handleReadMSHRHit(
 		next.MSHRState.Entries[mshrIdx].TransactionIndices,
 		transIdx)
 
+	next.StatDemandReadMSHRHits++
 	ds.popDirPostBuf()
 
 	tracing.AddTaskTag(ds.cache.comp, tracing.TaskTag{
@@ -205,7 +243,12 @@ func (ds *directoryStage) handleReadHit(
 		block.IsPrefetched = false
 	}
 
-	return ds.readFromBank(transIdx, trans, setID, wayID)
+	ok := ds.readFromBank(transIdx, trans, setID, wayID)
+	if ok && !trans.IsPrefetch {
+		next.StatDemandReadHits++
+	}
+
+	return ok
 }
 
 func (ds *directoryStage) handleReadMiss(transIdx int, trans *transactionState) bool {

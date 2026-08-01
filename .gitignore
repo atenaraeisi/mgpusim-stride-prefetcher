@@ -25,3 +25,11 @@ akita_sim_*
 .DS_Store
 Thumbs.db
 go1.26.5.linux-amd64.tar.gz
+
+# Local Python environment
+.venv/
+__pycache__/
+*.py[cod]
+
+# Local experiment outputs
+results/

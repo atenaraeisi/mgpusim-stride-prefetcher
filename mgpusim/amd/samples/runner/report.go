@@ -725,21 +725,35 @@ func (r *reporter) reportPrefetchStats() {
 		if !ok {
 			continue
 		}
+
 		st := wc.State
-		r.dataRecorder.InsertData(tableName, metric{
-			Location: wc.Name(), What: "prefetch_requests",
-			Value: float64(st.StatPrefetchRequests), Unit: "count"})
-		r.dataRecorder.InsertData(tableName, metric{
-			Location: wc.Name(), What: "prefetch_hits",
-			Value: float64(st.StatPrefetchHits), Unit: "count"})
-		r.dataRecorder.InsertData(tableName, metric{
-			Location: wc.Name(), What: "cache_pollution",
-			Value: float64(st.StatCachePollution), Unit: "count"})
-		r.dataRecorder.InsertData(tableName, metric{
-			Location: wc.Name(), What: "mshr_hits",
-			Value: float64(st.StatMSHRHits), Unit: "count"})
-		r.dataRecorder.InsertData(tableName, metric{
-			Location: wc.Name(), What: "mshr_misses",
-			Value: float64(st.StatMSHRMisses), Unit: "count"})
+
+		record := func(what string, value uint64) {
+			r.dataRecorder.InsertData(tableName, metric{
+				Location: wc.Name(),
+				What:     what,
+				Value:    float64(value),
+				Unit:     "count",
+			})
+		}
+
+		// Useful prefetch statistics
+		record("prefetch_requests", st.StatPrefetchRequests)
+		record("prefetch_hits", st.StatPrefetchHits)
+		record("cache_pollution", st.StatCachePollution)
+
+		// Demand-read statistics
+		record("demand_read_hits", st.StatDemandReadHits)
+		record("demand_read_misses", st.StatDemandReadMisses)
+		record("demand_read_mshr_hits", st.StatDemandReadMSHRHits)
+
+		// Prefetch-request outcomes
+		record("prefetch_cache_hits", st.StatPrefetchCacheHits)
+		record("prefetch_mshr_hits", st.StatPrefetchMSHRHits)
+		record("prefetch_misses", st.StatPrefetchMisses)
+
+		// Legacy aggregate statistics
+		record("mshr_hits", st.StatMSHRHits)
+		record("mshr_misses", st.StatMSHRMisses)
 	}
 }

@@ -40,47 +40,127 @@ def load_kernel_time(csv_path: str) -> float:
 
 
 def compute_derived_metrics(totals: pd.Series) -> dict:
-    """Derive hit/miss/coverage/pollution rates from the raw counters."""
+    """Derive demand-only and prefetch-only metrics."""
 
     def g(name: str) -> float:
         return float(totals.get(name, 0.0))
 
-    read_hit = g("read-hit")
-    read_miss = g("read-miss")
-    mshr_hits = g("mshr_hits")
-    mshr_misses = g("mshr_misses")
-    prefetch_requests = g("prefetch_requests")
-    prefetch_hits = g("prefetch_hits")
-    prefetch_miss = g("prefetch-miss")
-    cache_pollution = g("cache_pollution")
-
-    total_read = read_hit + read_miss
-    total_mshr = mshr_hits + mshr_misses
-    # Demand-only misses (excludes prefetch-issued misses), since Coverage
-    # measures demand misses avoided by prefetching.
-    demand_misses = read_miss - prefetch_miss
-
-    return {
-        "read_hit": read_hit,
-        "read_miss": read_miss,
-        "hit_rate": read_hit / total_read if total_read else float("nan"),
-        "miss_rate": read_miss / total_read if total_read else float("nan"),
-        "mshr_hits": mshr_hits,
-        "mshr_misses": mshr_misses,
-        "mshr_hit_rate": mshr_hits / total_mshr if total_mshr else float("nan"),
-        "mshr_miss_rate": mshr_misses / total_mshr if total_mshr else float("nan"),
-        "prefetch_requests": prefetch_requests,
-        "prefetch_hits": prefetch_hits,
-        "prefetch_usage_rate": (
-            prefetch_hits / prefetch_requests if prefetch_requests else float("nan")
-        ),
-        "coverage": prefetch_hits / demand_misses if demand_misses else float("nan"),
-        "cache_pollution": cache_pollution,
-        "pollution_rate": (
-            cache_pollution / prefetch_requests if prefetch_requests else float("nan")
-        ),
+    required = {
+        "demand_read_hits",
+        "demand_read_misses",
+        "demand_read_mshr_hits",
+        "prefetch_requests",
+        "prefetch_hits",
+        "prefetch_cache_hits",
+        "prefetch_mshr_hits",
+        "prefetch_misses",
+        "cache_pollution",
     }
 
+    missing = sorted(required - set(totals.index))
+    if missing:
+        raise ValueError(
+            "CSV does not contain the new split counters: "
+            + ", ".join(missing)
+            + ". Rebuild and rerun the benchmark."
+        )
+
+    demand_hits = g("demand_read_hits")
+    demand_misses = g("demand_read_misses")
+    demand_mshr_hits = g("demand_read_mshr_hits")
+
+    prefetch_requests = g("prefetch_requests")
+    prefetch_hits = g("prefetch_hits")
+    prefetch_cache_hits = g("prefetch_cache_hits")
+    prefetch_mshr_hits = g("prefetch_mshr_hits")
+    prefetch_misses = g("prefetch_misses")
+    cache_pollution = g("cache_pollution")
+
+    demand_cache_lookups = demand_hits + demand_misses
+    demand_mshr_lookups = demand_mshr_hits + demand_misses
+
+    total_demand_reads = (
+        demand_hits
+        + demand_misses
+        + demand_mshr_hits
+    )
+
+    prefetch_outcomes = (
+        prefetch_cache_hits
+        + prefetch_mshr_hits
+        + prefetch_misses
+    )
+
+    potential_demand_misses = (
+        prefetch_hits
+        + demand_misses
+    )
+
+    return {
+        "total_demand_reads": total_demand_reads,
+
+        "demand_read_hits": demand_hits,
+        "demand_read_misses": demand_misses,
+
+        "demand_cache_hit_rate": (
+            demand_hits / demand_cache_lookups
+            if demand_cache_lookups
+            else float("nan")
+        ),
+
+        "demand_cache_miss_rate": (
+            demand_misses / demand_cache_lookups
+            if demand_cache_lookups
+            else float("nan")
+        ),
+
+        "demand_read_mshr_hits": demand_mshr_hits,
+
+        "demand_mshr_hit_rate": (
+            demand_mshr_hits / demand_mshr_lookups
+            if demand_mshr_lookups
+            else float("nan")
+        ),
+
+        "demand_mshr_miss_rate": (
+            demand_misses / demand_mshr_lookups
+            if demand_mshr_lookups
+            else float("nan")
+        ),
+
+        "prefetch_requests": prefetch_requests,
+        "prefetch_cache_hits": prefetch_cache_hits,
+        "prefetch_mshr_hits": prefetch_mshr_hits,
+        "prefetch_misses": prefetch_misses,
+
+        "prefetch_outcomes": prefetch_outcomes,
+
+        "prefetch_unaccounted": (
+            prefetch_requests - prefetch_outcomes
+        ),
+
+        "prefetch_hits": prefetch_hits,
+
+        "prefetch_usage_rate": (
+            prefetch_hits / prefetch_requests
+            if prefetch_requests
+            else float("nan")
+        ),
+
+        "coverage": (
+            prefetch_hits / potential_demand_misses
+            if potential_demand_misses
+            else 0.0
+        ),
+
+        "cache_pollution": cache_pollution,
+
+        "pollution_rate": (
+            cache_pollution / prefetch_requests
+            if prefetch_requests
+            else float("nan")
+        ),
+    }
 
 def print_report(csv_path: str) -> dict:
     totals = load_l2_totals(csv_path)
