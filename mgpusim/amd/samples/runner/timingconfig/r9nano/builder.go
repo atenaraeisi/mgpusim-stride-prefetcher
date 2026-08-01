@@ -21,6 +21,8 @@ import (
 	"github.com/sarchlab/mgpusim/v5/amd/timing/cp"
 	"github.com/sarchlab/mgpusim/v5/amd/timing/cu"
 	"github.com/sarchlab/mgpusim/v5/amd/timing/rdma"
+
+	"github.com/sarchlab/akita/v5/mem/cache"
 )
 
 // Port buffer sizes. The CP and DMA-to-CP ports mirror the v4 4096-deep
@@ -53,10 +55,16 @@ type Builder struct {
 	log2MemoryBankInterleavingSize uint64
 	memAddrOffset                  uint64
 	dramSize                       uint64
-	globalStorage                  *mem.Storage
-	mmu                            *mmu.Comp
-	rdmaAddressMapper              mem.AddressToPortMapper
-	driverPort                     messaging.RemotePort
+	prefetcherAlgorithm            string
+	prefetchDegree                 int
+	prefetchConfidence             int
+	prefetchHistorySize            int
+	prefetchPreventPageCrossing    bool
+
+	globalStorage     *mem.Storage
+	mmu               *mmu.Comp
+	rdmaAddressMapper mem.AddressToPortMapper
+	driverPort        messaging.RemotePort
 
 	gpu                *gpubuilder.GPU
 	cp                 *cp.Comp
@@ -86,7 +94,43 @@ func MakeBuilder() Builder {
 		log2MemoryBankInterleavingSize: 7,
 		memAddrOffset:                  0,
 		dramSize:                       4 * mem.GB,
+		prefetcherAlgorithm:            "none",
+		prefetchDegree:                 2,
+		prefetchConfidence:             2,
+		prefetchHistorySize:            8,
+		prefetchPreventPageCrossing:    true,
 	}
+}
+
+func (b Builder) WithPrefetcherAlgorithm(
+	algorithm string,
+) Builder {
+	b.prefetcherAlgorithm = algorithm
+	return b
+}
+
+func (b Builder) WithPrefetchDegree(degree int) Builder {
+	b.prefetchDegree = degree
+	return b
+}
+
+func (b Builder) WithPrefetchConfidence(
+	confidence int,
+) Builder {
+	b.prefetchConfidence = confidence
+	return b
+}
+
+func (b Builder) WithPrefetchHistorySize(size int) Builder {
+	b.prefetchHistorySize = size
+	return b
+}
+
+func (b Builder) WithPrefetchPreventPageCrossing(
+	prevent bool,
+) Builder {
+	b.prefetchPreventPageCrossing = prevent
+	return b
 }
 
 // WithSimulation sets the simulation to use.
@@ -480,9 +524,25 @@ func (b *Builder) buildL2Caches() {
 	spec.TotalByteSize = byteSize
 	spec.NumMSHREntry = 64
 	spec.NumReqPerCycle = 16
+	spec.PrefetcherEnabled = b.prefetcherAlgorithm == "stride"
+	spec.PrefetcherAlgorithm = b.prefetcherAlgorithm
+	strideConfig := cache.StridePrefetcherConfig{
+		Degree:              b.prefetchDegree,
+		ConfidenceThreshold: b.prefetchConfidence,
+		HistorySize:         b.prefetchHistorySize,
+		BlockSize:           uint64(1) << b.log2CacheLineSize,
+		PageSize:            uint64(1) << b.log2PageSize,
+		PreventPageCrossing: b.prefetchPreventPageCrossing,
+	}
 
 	for i := 0; i < b.numMemoryBank; i++ {
 		cacheName := fmt.Sprintf("%s.L2Cache[%d]", b.name, i)
+
+		var prefetchUnit cache.Prefetcher
+		if b.prefetcherAlgorithm == "stride" {
+			prefetchUnit = cache.NewStridePrefetcher(strideConfig)
+		}
+
 		l2 := writeback.MakeBuilder().
 			WithRegistrar(b.simulation).
 			WithSpec(spec).
@@ -490,6 +550,7 @@ func (b *Builder) buildL2Caches() {
 				AddressToPortMapper: &mem.SinglePortMapper{
 					Port: b.drams[i].GetPortByName("Top").AsRemote(),
 				},
+				PrefetchUnit: prefetchUnit,
 			}).
 			Build(cacheName)
 

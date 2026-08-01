@@ -80,6 +80,36 @@ var visTraceEndTime = flag.Float64("trace-vis-end", -1,
 	"The end time of collecting visualization traces. A negative number"+
 		"means that the trace will be collected to the end of the simulation.")
 
+var prefetcherFlag = flag.String(
+	"prefetcher",
+	"none",
+	"Prefetcher algorithm: none or stride.",
+)
+
+var prefetchDegreeFlag = flag.Int(
+	"prefetch-degree",
+	2,
+	"Number of addresses generated for each prediction.",
+)
+
+var prefetchConfidenceFlag = flag.Int(
+	"prefetch-confidence",
+	2,
+	"Number of matching strides required before prefetching.",
+)
+
+var prefetchHistorySizeFlag = flag.Int(
+	"prefetch-history-size",
+	8,
+	"Maximum number of addresses kept in each stride history.",
+)
+
+var prefetchPreventPageCrossingFlag = flag.Bool(
+	"prefetch-prevent-page-crossing",
+	true,
+	"Prevent prefetch requests from crossing page boundaries.",
+)
+
 // metricFileNameFlagIsSet tells whether the user explicitly passed
 // -metric-file-name on the command line.
 func metricFileNameFlagIsSet() bool {
@@ -120,6 +150,33 @@ func (r *Runner) parseSimulationFlags() {
 
 	r.ArchType = parseArchFlag()
 	r.GPUType = parseGPUTypeFlag()
+
+	algorithm := strings.ToLower(*prefetcherFlag)
+
+	switch algorithm {
+	case "none", "stride":
+		r.PrefetcherAlgorithm = algorithm
+	default:
+		panic("invalid -prefetcher value: use none or stride")
+	}
+
+	if *prefetchDegreeFlag < 1 {
+		panic("-prefetch-degree must be at least 1")
+	}
+
+	if *prefetchConfidenceFlag < 1 {
+		panic("-prefetch-confidence must be at least 1")
+	}
+
+	if *prefetchHistorySizeFlag < 2 {
+		panic("-prefetch-history-size must be at least 2")
+	}
+
+	r.PrefetchDegree = *prefetchDegreeFlag
+	r.PrefetchConfidence = *prefetchConfidenceFlag
+	r.PrefetchHistorySize = *prefetchHistorySizeFlag
+	r.PrefetchPreventPageCrossing = *prefetchPreventPageCrossingFlag
+
 }
 
 func (r *Runner) parseGPUFlag() {

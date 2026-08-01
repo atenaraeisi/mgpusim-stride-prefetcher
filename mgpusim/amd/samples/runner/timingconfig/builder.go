@@ -31,17 +31,22 @@ const (
 type Builder struct {
 	simulation *simulation.Simulation
 
-	numGPUs            int
-	numCUPerSA         int
-	numSAPerGPU        int
-	cpuMemSize         uint64
-	gpuMemSize         uint64
-	log2PageSize       uint64
-	useMagicMemoryCopy bool
-	gpuType            string
-	switchLatency      int // PCIe/interconnect switch latency in cycles
-	d2hCycles          int
-	h2dCycles          int
+	numGPUs                     int
+	numCUPerSA                  int
+	numSAPerGPU                 int
+	cpuMemSize                  uint64
+	gpuMemSize                  uint64
+	log2PageSize                uint64
+	useMagicMemoryCopy          bool
+	gpuType                     string
+	switchLatency               int // PCIe/interconnect switch latency in cycles
+	d2hCycles                   int
+	h2dCycles                   int
+	prefetcherAlgorithm         string
+	prefetchDegree              int
+	prefetchConfidence          int
+	prefetchHistorySize         int
+	prefetchPreventPageCrossing bool
 
 	globalStorage     *mem.Storage
 	rdmaAddressMapper *mem.BankedAddressPortMapper
@@ -50,18 +55,56 @@ type Builder struct {
 // MakeBuilder creates a new Builder with default parameters.
 func MakeBuilder() Builder {
 	return Builder{
-		numGPUs:            1,
-		numCUPerSA:         4,
-		numSAPerGPU:        16,
-		cpuMemSize:         4 * mem.GB,
-		gpuMemSize:         4 * mem.GB,
-		log2PageSize:       12,
-		useMagicMemoryCopy: false,
-		gpuType:            "r9nano",
-		switchLatency:      140, // default PCIe Gen4
-		d2hCycles:          300,
-		h2dCycles:          500,
+		numGPUs:                     1,
+		numCUPerSA:                  4,
+		numSAPerGPU:                 16,
+		cpuMemSize:                  4 * mem.GB,
+		gpuMemSize:                  4 * mem.GB,
+		log2PageSize:                12,
+		useMagicMemoryCopy:          false,
+		gpuType:                     "r9nano",
+		switchLatency:               140,
+		d2hCycles:                   300,
+		h2dCycles:                   500,
+		prefetcherAlgorithm:         "none",
+		prefetchDegree:              2,
+		prefetchConfidence:          2,
+		prefetchHistorySize:         8,
+		prefetchPreventPageCrossing: true,
 	}
+}
+
+func (b Builder) WithPrefetcherAlgorithm(
+	algorithm string,
+) Builder {
+	b.prefetcherAlgorithm = algorithm
+	return b
+}
+
+func (b Builder) WithPrefetchDegree(degree int) Builder {
+	b.prefetchDegree = degree
+	return b
+}
+
+func (b Builder) WithPrefetchConfidence(
+	confidence int,
+) Builder {
+	b.prefetchConfidence = confidence
+	return b
+}
+
+func (b Builder) WithPrefetchHistorySize(
+	size int,
+) Builder {
+	b.prefetchHistorySize = size
+	return b
+}
+
+func (b Builder) WithPrefetchPreventPageCrossing(
+	prevent bool,
+) Builder {
+	b.prefetchPreventPageCrossing = prevent
+	return b
 }
 
 // WithSimulation sets the simulation to use.
@@ -227,6 +270,13 @@ func (b *Builder) createGPUBuilder(
 			WithMMU(mmuComponent).
 			WithLog2PageSize(b.log2PageSize).
 			WithGlobalStorage(b.globalStorage).
+			WithPrefetcherAlgorithm(b.prefetcherAlgorithm).
+			WithPrefetchDegree(b.prefetchDegree).
+			WithPrefetchConfidence(b.prefetchConfidence).
+			WithPrefetchHistorySize(b.prefetchHistorySize).
+			WithPrefetchPreventPageCrossing(
+				b.prefetchPreventPageCrossing,
+			).
 			WithDriverPort(driverPort)
 	}
 }

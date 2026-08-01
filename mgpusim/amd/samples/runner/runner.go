@@ -36,8 +36,14 @@ type Runner struct {
 	UseUnifiedMemory bool
 	ArchType         arch.Type
 	GPUType          string
+	GPUIDs           []int
 
-	GPUIDs     []int
+	PrefetcherAlgorithm         string
+	PrefetchDegree              int
+	PrefetchConfidence          int
+	PrefetchHistorySize         int
+	PrefetchPreventPageCrossing bool
+
 	benchmarks []benchmarks.Benchmark
 }
 
@@ -107,6 +113,15 @@ func (r *Runner) buildTimingPlatform() {
 		WithSimulation(r.simulation).
 		WithNumGPUs(r.GPUIDs[len(r.GPUIDs)-1]).
 		WithGPUType(r.GPUType)
+
+	b = b.
+		WithPrefetcherAlgorithm(r.PrefetcherAlgorithm).
+		WithPrefetchDegree(r.PrefetchDegree).
+		WithPrefetchConfidence(r.PrefetchConfidence).
+		WithPrefetchHistorySize(r.PrefetchHistorySize).
+		WithPrefetchPreventPageCrossing(
+			r.PrefetchPreventPageCrossing,
+		)
 
 	if *magicMemoryCopy {
 		b = b.WithMagicMemoryCopy()
