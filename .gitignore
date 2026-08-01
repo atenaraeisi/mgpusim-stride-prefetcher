@@ -15,7 +15,7 @@ mgpusim/amd/samples/fir/fir
 
 # Generated reports
 akita_sim_*
-baseline_*
+
 
 # Editors
 .vscode/
