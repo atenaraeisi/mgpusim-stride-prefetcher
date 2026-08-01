@@ -63,7 +63,6 @@ var _ = Describe("Prefetch Integration", func() {
 		m.dirStage = ds
 	})
 
-	// --- مورد ۳: Demand بعد از این‌که Prefetch بلاک را نصب کرد ---
 	Context("demand read after a prefetch already installed the block", func() {
 		BeforeEach(func() {
 			next := &m.comp.State
@@ -96,7 +95,6 @@ var _ = Describe("Prefetch Integration", func() {
 		})
 	})
 
-	// --- مورد ۴: Demand هنگامی که Prefetch هنوز در MSHR است ---
 	Context("demand read while a prefetch for the same block is in-flight", func() {
 		BeforeEach(func() {
 			prefetchTrans := transactionState{
@@ -149,7 +147,6 @@ var _ = Describe("Prefetch Integration", func() {
 	})
 })
 
-// --- مورد ۵: صف کم‌اولویت وقتی DirStageBuf پر است ---
 var _ = Describe("Prefetch Queue Backpressure", func() {
 	var (
 		m      *pipelineMW
@@ -194,12 +191,28 @@ var _ = Describe("Prefetch Queue Backpressure", func() {
 		next.DirStageBuf.Pop()
 		Expect(next.DirStageBuf.CanPush()).To(BeTrue())
 
-		progress := parser.drainPendingPrefetches()
+		Expect(parser.drainPendingPrefetches()).To(BeTrue())
 
-		Expect(progress).To(BeTrue())
+		expectedAddresses := []uint64{0x200, 0x300, 0x400}
+
+		for i, expectedAddress := range expectedAddresses {
+			if i > 0 {
+				next.DirStageBuf.Pop()
+				Expect(parser.drainPendingPrefetches()).To(BeTrue())
+			}
+
+			next = &m.comp.State
+			trans := next.Transactions[i+1]
+
+			Expect(trans.IsPrefetch).To(BeTrue())
+			Expect(trans.HasRead).To(BeTrue())
+			Expect(trans.ReadAddress).To(Equal(expectedAddress))
+			Expect(trans.ReadPID).To(Equal(vm.PID(0)))
+			Expect(trans.ReadAccessByteSize).To(Equal(uint64(4)))
+		}
+
 		next = &m.comp.State
-
-		Expect(next.PendingPrefetches).To(HaveLen(2))
-		Expect(next.StatPrefetchRequests).To(Equal(uint64(1)))
+		Expect(next.PendingPrefetches).To(BeEmpty())
+		Expect(next.StatPrefetchRequests).To(Equal(uint64(3)))
 	})
 })

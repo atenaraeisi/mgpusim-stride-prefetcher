@@ -241,3 +241,42 @@ func assertAddresses(t *testing.T, actual []uint64, expected ...uint64) {
 		}
 	}
 }
+
+func TestStridePrefetcherConfidenceThreshold(t *testing.T) {
+	p := newTestStridePrefetcher(1, 3, false)
+
+	inspectAddress(p, 1, 0x1000)
+	inspectAddress(p, 1, 0x1040)
+	inspectAddress(p, 1, 0x1080)
+	assertAddresses(t, p.GetPrefetchAddresses())
+
+	inspectAddress(p, 1, 0x10c0)
+	assertAddresses(t, p.GetPrefetchAddresses(), 0x1100)
+}
+
+func TestStridePrefetcherAlignsAddressesToCacheLine(t *testing.T) {
+	p := newTestStridePrefetcher(1, 2, false)
+
+	inspectAddress(p, 1, 0x1003)
+	inspectAddress(p, 1, 0x1047)
+	inspectAddress(p, 1, 0x1081)
+
+	assertAddresses(t, p.GetPrefetchAddresses(), 0x10c0)
+}
+
+func TestStridePrefetcherUsesDefaultsForInvalidConfig(t *testing.T) {
+	p := NewStridePrefetcher(StridePrefetcherConfig{
+		Degree:              0,
+		ConfidenceThreshold: 0,
+		HistorySize:         1,
+		BlockSize:           0,
+		PageSize:            0,
+		PreventPageCrossing: true,
+	})
+
+	expected := DefaultStridePrefetcherConfig()
+
+	if p.config != expected {
+		t.Fatalf("expected config %+v, got %+v", expected, p.config)
+	}
+}
