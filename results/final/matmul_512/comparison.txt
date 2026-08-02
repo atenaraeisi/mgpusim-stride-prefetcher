@@ -1,0 +1,71 @@
+
+=== baseline.csv ===
+kernel_time: 1.416580e-04 s
+--------------------------------------------------
+total_demand_reads    : 328160
+demand_read_hits      : 252055
+demand_read_misses    : 32850
+demand_cache_hit_rate : 88.47%
+demand_cache_miss_rate: 11.53%
+demand_read_mshr_hits : 43255
+demand_mshr_hit_rate  : 56.84%
+demand_mshr_miss_rate : 43.16%
+prefetch_requests     : 0
+prefetch_cache_hits   : 0
+prefetch_mshr_hits    : 0
+prefetch_misses       : 0
+prefetch_outcomes     : 0
+prefetch_unaccounted  : 0
+prefetch_hits         : 0
+prefetch_usage_rate   : N/A
+coverage              : 0.00%
+cache_pollution       : 0
+pollution_rate        : N/A
+
+=== stride.csv ===
+kernel_time: 1.452520e-04 s
+--------------------------------------------------
+total_demand_reads    : 328161
+demand_read_hits      : 269056
+demand_read_misses    : 33060
+demand_cache_hit_rate : 89.06%
+demand_cache_miss_rate: 10.94%
+demand_read_mshr_hits : 26045
+demand_mshr_hit_rate  : 44.07%
+demand_mshr_miss_rate : 55.93%
+prefetch_requests     : 74753
+prefetch_cache_hits   : 45370
+prefetch_mshr_hits    : 10692
+prefetch_misses       : 18691
+prefetch_outcomes     : 74753
+prefetch_unaccounted  : 0
+prefetch_hits         : 97
+prefetch_usage_rate   : 0.13%
+coverage              : 0.29%
+cache_pollution       : 9071
+pollution_rate        : 12.13%
+
+=== Baseline vs. Stride ===
+Speedup (baseline / stride): 0.9753x
+                metric      baseline        stride
+    total_demand_reads 328160.000000 328161.000000
+      demand_read_hits 252055.000000 269056.000000
+    demand_read_misses  32850.000000  33060.000000
+ demand_cache_hit_rate      0.884698      0.890572
+demand_cache_miss_rate      0.115302      0.109428
+ demand_read_mshr_hits  43255.000000  26045.000000
+  demand_mshr_hit_rate      0.568360      0.440656
+ demand_mshr_miss_rate      0.431640      0.559344
+     prefetch_requests      0.000000  74753.000000
+   prefetch_cache_hits      0.000000  45370.000000
+    prefetch_mshr_hits      0.000000  10692.000000
+       prefetch_misses      0.000000  18691.000000
+     prefetch_outcomes      0.000000  74753.000000
+  prefetch_unaccounted      0.000000      0.000000
+         prefetch_hits      0.000000     97.000000
+   prefetch_usage_rate           NaN      0.001298
+              coverage      0.000000      0.002925
+       cache_pollution      0.000000   9071.000000
+        pollution_rate           NaN      0.121346
+
+Saved: comparison_summary.csv
