@@ -33,3 +33,8 @@ __pycache__/
 
 # Local experiment outputs
 results/
+
+# Keep generated plots
+!results/
+!results/plots/
+!results/plots/**
