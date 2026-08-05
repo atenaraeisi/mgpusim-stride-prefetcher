@@ -32,9 +32,19 @@ __pycache__/
 *.py[cod]
 
 # Local experiment outputs
-results/
+results/*
 
-# Keep generated plots
-!results/
+# Keep curated benchmark results
+!results/final/
+!results/final/**
+
+# Keep raw result files included for reproducibility
+!results/raw/
+!results/raw/**
+
+# Keep generated report plots
 !results/plots/
 !results/plots/**
+
+# Keep results documentation
+!results/README.md
